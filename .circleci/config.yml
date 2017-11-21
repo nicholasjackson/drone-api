@@ -1,0 +1,43 @@
+version: 2
+jobs:
+
+  build:
+    working_directory: /go/src/github.com/nicholasjackson/drone-api
+    docker:
+      - image: circleci/golang:1.9.1
+    steps:
+      - checkout
+      - run:
+          name: Build for Linux
+          command: go build -o drone-api
+      - persist_to_workspace:
+          root: /go/src/github.com/nicholasjackson/drone-api
+          paths:
+            - ./
+ 
+  deploy:
+    working_directory: /go/src/github.com/nicholasjackson/drone-api
+    docker:
+      - image: circleci/golang:1.9.1
+    steps:
+      - attach_workspace:
+          at: /go/src/github.com/nicholasjackson/drone-api
+      - run:
+          name: Fetch dependencies
+          command: go get -u github.com/tcnksm/ghr
+      - run:
+          name: Deploy to github releases
+          command: ghr -t $GITHUB_TOKEN -u $CIRCLE_PROJECT_USERNAME -r $CIRCLE_PROJECT_REPONAME --replace `git describe --tags` ./drone-api
+
+workflows:
+  version: 2
+
+  build_test_deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*/
